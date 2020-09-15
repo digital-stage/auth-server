@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "NODE_ENV=development tsc && node ./dist/index.js",
     "deploy-production": "NODE_ENV=production pm2 deploy ecosystem.config.js production --force",
-    "reload-production": "NODE_ENV=production pm2 deploy ecosystem.config.js production exec 'pm2 reload sdp-server'"
+    "reload-production": "NODE_ENV=production pm2 deploy ecosystem.config.js production exec 'pm2 reload auth-server'"
   },
   "repository": {
     "type": "git",

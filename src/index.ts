@@ -13,8 +13,9 @@ import {ExtractJwt} from "passport-jwt";
 import {User, UserModel, UserType} from "./store/UserModel";
 import * as jwt from "jsonwebtoken";
 
-const MONGOOSE_URL = "mongodb://127.0.0.1:4321/auth";
-export const PORT: number = 5000;
+
+const MONGOOSE_URL = process.env.MONGO_URL || "mongodb://127.0.0.1:4321/auth";
+export const PORT: number | string = process.env.PORT || 5000;
 const logger = pino({
     level: process.env.LOG_LEVEL || 'info'
 });
