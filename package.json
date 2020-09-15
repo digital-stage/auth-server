@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/digital-stage/server.git"
+    "url": "git+https://github.com/digital-stage/auth-server.git"
   },
   "keywords": [
     "video",
@@ -23,9 +23,9 @@
   "author": "Tobias Hegemann <tobias.hegemann@googlemail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/digital-stage/server/issues"
+    "url": "https://github.com/digital-stage/auth-server/issues"
   },
-  "homepage": "https://github.com/digital-stage/server#readme",
+  "homepage": "https://github.com/digital-stage/auth-server#readme",
   "devDependencies": {
     "@types/bcrypt": "^3.0.0",
     "@types/cors": "^2.8.7",
