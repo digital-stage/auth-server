@@ -34,7 +34,7 @@ module.exports = {
                 SSL_KEY: '/etc/letsencrypt/live/auth.api.digital-stage.org/privkey.pem',
                 MONGO_URL: 'mongodb://10.114.0.4:27017/auth'
             },
-            'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env frankfurt'
+            'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production'
         }
     }
 };
