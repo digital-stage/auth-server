@@ -25,7 +25,7 @@ module.exports = {
             user: 'node',
             host: 'auth.api.digital-stage.org',
             ref: 'origin/master',
-            repo: "https://github.com/digital-stage/server.git",
+            repo: "https://github.com/digital-stage/auth-server.git",
             path: '/node/auth-server',
             env: {
                 NODE_ENV: 'production',
