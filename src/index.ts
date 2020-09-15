@@ -163,7 +163,7 @@ app.post('/signup',
     }
 );
 
-if (process.env.NODE_ENV === "development") {
+if (process.env.NODE_ENV === "development" || !process.env.USE_SSL) {
     app.listen(PORT);
     logger.info("SERVER LISTENING WITHOUT SSL ON PORT " + PORT);
 } else {

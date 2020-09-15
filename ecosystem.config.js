@@ -13,7 +13,8 @@ module.exports = {
         },
         env_production: {
             NODE_ENV: 'production',
-            PORT: '443',
+            PORT: '5000',
+            USE_SSL: false,
             SSL_CRT: '/etc/letsencrypt/live/auth.api.digital-stage.org/fullchain.pem',
             SSL_KEY: '/etc/letsencrypt/live/auth.api.digital-stage.org/privkey.pem',
             MONGO_URL: 'mongodb://10.114.0.4:27017/auth'
@@ -29,7 +30,8 @@ module.exports = {
             path: '/node/auth-server',
             env: {
                 NODE_ENV: 'production',
-                PORT: '443',
+                PORT: '5000',
+                USE_SSL: false,
                 SSL_CRT: '/etc/letsencrypt/live/auth.api.digital-stage.org/fullchain.pem',
                 SSL_KEY: '/etc/letsencrypt/live/auth.api.digital-stage.org/privkey.pem',
                 MONGO_URL: 'mongodb://10.114.0.4:27017/auth'
