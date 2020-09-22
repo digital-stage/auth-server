@@ -5,10 +5,10 @@ export type InvalidToken = {
     token: string;
 };
 
-const InvalidTokenSchema = new mongoose.Schema({
+const BlacklistEntrySchema = new mongoose.Schema({
     token: {type: String, index: true},
-    createdAt: { type: Date, expires: '24h', default: Date.now }
+    createdAt: {type: Date, expires: 604800, default: Date.now}
 }, {timestamps: true});
 
 export type InvalidTokenType = InvalidToken & mongoose.Document;
-export const InvalidTokenModel = mongoose.model<InvalidTokenType>('Blacklist', InvalidTokenSchema);
+export const BlacklistEntryModel = mongoose.model<InvalidTokenType>('Blacklist', BlacklistEntrySchema);

@@ -8,10 +8,12 @@ import * as core from "express-serve-static-core";
 import * as mongoose from "mongoose";
 import * as passport from "passport";
 import * as LocalStrategy from "passport-local";
-import {Strategy as JwtStrategy} from "passport-jwt";
+import {Strategy as JwtStrategy, VerifiedCallback} from "passport-jwt";
 import {ExtractJwt} from "passport-jwt";
 import {User, UserModel, UserType} from "./store/UserModel";
 import * as jwt from "jsonwebtoken";
+import {BlacklistEntryModel} from "./store/BlacklistEntryModel";
+import {Request} from "express";
 
 
 const MONGOOSE_URL = process.env.MONGO_URL || "mongodb://127.0.0.1:4321/auth";
@@ -63,16 +65,25 @@ passport.use(new LocalStrategy({
 ));
 passport.use(new JwtStrategy({
     jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-    secretOrKey: SECRET
-}, function (jwt_payload, done) {
-    return UserModel.findById(jwt_payload.user._id).exec()
-        .then(user => {
-            if (user) {
-                return done(null, user);
+    secretOrKey: SECRET,
+    passReqToCallback: true
+}, function (req: Request, jwt_payload: any, done: VerifiedCallback) {
+    // Check if token is blacklisted
+    const token: string = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+    return BlacklistEntryModel.findOne({token: token}).exec()
+        .then(invalidToken => {
+            if (invalidToken) {
+                return done(null, false);
             }
-            return done(null, false);
+            return UserModel.findById(jwt_payload.user._id).exec()
+                .then(user => {
+                    if (user) {
+                        return done(null, user);
+                    }
+                    return done(null, false);
+                })
+                .catch(err => done(err, false));
         })
-        .catch(err => done(err, false));
 }));
 
 const generateToken = (user: User) => {
@@ -81,12 +92,10 @@ const generateToken = (user: User) => {
             _id: user._id,
             email: user.email
         }
-    }, SECRET);
+    }, SECRET, {
+        expiresIn: 604800
+    });
 }
-
-app.get('/', function (req, res) {
-    res.send('Hello World!');
-});
 
 app.get('/', function (req, res) {
     res.send('Hello World!');
@@ -94,6 +103,7 @@ app.get('/', function (req, res) {
 app.post('/login',
     passport.authenticate('local', {session: false}),
     function (req, res) {
+        console.log("login");
         const user: User = req.user as any;
         return res.json(generateToken(user));
     }
@@ -111,7 +121,6 @@ app.get('/verify',
 app.get('/profile',
     passport.authenticate('jwt', {session: false}),
     function (req, res) {
-        console.log("PROFILE");
         const user: User = req.user as any;
         return res.status(200).json({
             _id: user._id,
@@ -160,6 +169,16 @@ app.post('/signup',
                 logger.error(err);
                 return res.sendStatus(500);
             })
+    }
+);
+app.post('/logout',
+    passport.authenticate('jwt', {session: false}),
+    function (req, res) {
+        const token: string = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+        const invalidToken = new BlacklistEntryModel();
+        invalidToken.token = token;
+        return invalidToken.save()
+            .then(() => res.sendStatus(200));
     }
 );
 
