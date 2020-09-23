@@ -14,14 +14,18 @@ import {User, UserModel, UserType} from "./store/UserModel";
 import * as jwt from "jsonwebtoken";
 import {BlacklistEntryModel} from "./store/BlacklistEntryModel";
 import {Request} from "express";
+import * as crypto from "crypto";
+import * as nodemailer from "nodemailer";
+import {resolveVariables} from "./env";
 
+resolveVariables();
 
 const MONGOOSE_URL = process.env.MONGO_URL || "mongodb://127.0.0.1:4321/auth";
 export const PORT: number | string = process.env.PORT || 5000;
+const SECRET: string = process.env.SECRET || "a2a4b644384b3c940ba4754a81736f79333077c8";
 const logger = pino({
     level: process.env.LOG_LEVEL || 'info'
 });
-const SECRET = "secret";
 
 // INIT MONGOOSE
 mongoose.connect(MONGOOSE_URL, {
@@ -38,6 +42,16 @@ app.use(cors({origin: true}));
 app.options('*', cors());
 app.use(passport.initialize());
 app.use(passport.session());
+
+const smtpTransport = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : undefined,
+    secure: process.env.SMTP_SSL && process.env.SMTP_SSL === "true",
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD
+    }
+});
 
 passport.use(new LocalStrategy({
         usernameField: 'email',
@@ -103,7 +117,6 @@ app.get('/', function (req, res) {
 app.post('/login',
     passport.authenticate('local', {session: false}),
     function (req, res) {
-        console.log("login");
         const user: User = req.user as any;
         return res.json(generateToken(user));
     }
@@ -181,6 +194,72 @@ app.post('/logout',
             .then(() => res.sendStatus(200));
     }
 );
+app.post('/forgot',
+    function (req, res) {
+        if (
+            !req.body.email
+            || typeof req.body.email !== 'string'
+        ) {
+            return res.sendStatus(400);
+        }
+        return UserModel.findOne({email: req.body.email}).exec()
+            .then(user => {
+                if (user) {
+                    const resetToken: string = crypto.randomBytes(20).toString('hex');
+                    user.resetToken = resetToken;
+                    user.resetPasswordExpires = Date.now() + 3600000;
+                    return user.save()
+                        .then(() => {
+                            return smtpTransport.sendMail({
+                                to: user.email,
+                                from: process.env.SMTP_FROM,
+                                subject: 'Passwort zurücksetzen',
+                                text: 'Du erhälst diese E-Mail da Du (oder jemand anderes) dein Passwort auf digital-stage.org zurücksetzen möchte.\n\n' +
+                                    'Bitte klicke auf den folgenden Link, um Dein Passwort zurückzusetzen:\n\n' +
+                                    process.env.RESET_URL + '?token=' + resetToken + '\n\n' +
+                                    'Falls Du nicht Dein Passwort zurücksetzen wolltest, ignoriere bitte diese E-Mail.\n'
+                            })
+                                .then(() => logger.info("Send reset mail to " + user.email))
+                                .then(() => res.sendStatus(200));
+                        })
+                        .catch(error => {
+                            logger.error(error);
+                            return res.sendStatus(500);
+                        })
+                }
+                return res.sendStatus(404);
+            });
+    }
+);
+app.post('/reset',
+    function (req, res) {
+        if (
+            !req.body.password
+            || typeof req.body.password !== 'string'
+            || !req.body.token
+            || typeof req.body.token !== 'string'
+        ) {
+            return res.sendStatus(400);
+        }
+        return UserModel.findOne({
+            resetToken: req.body.token,
+            resetPasswordExpires: {$gt: Date.now()}
+        })
+            .then(user => {
+                if (user) {
+                    logger.info("User " + user.name + " reset password!");
+                    user.password = req.body.password;
+                    return user.save()
+                        .then(() => res.sendStatus(200));
+                }
+                logger.debug("Invalid token used for reset");
+                return res.sendStatus(401);
+            })
+            .catch(error => {
+                logger.error(error);
+                return res.sendStatus(500);
+            });
+    });
 
 if (!process.env.USE_SSL || process.env.USE_SSL === "false") {
     app.listen(PORT);

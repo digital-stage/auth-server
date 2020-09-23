@@ -12,12 +12,8 @@ module.exports = {
             NODE_ENV: 'development'
         },
         env_production: {
-            NODE_ENV: 'production',
-            PORT: '5000',
-            USE_SSL: false,
-            SSL_CRT: '/etc/letsencrypt/live/auth.api.digital-stage.org/fullchain.pem',
-            SSL_KEY: '/etc/letsencrypt/live/auth.api.digital-stage.org/privkey.pem',
-            MONGO_URL: 'mongodb://10.114.0.4:27017/auth'
+            "NODE_ENV": "production",
+            "ENV_PATH": "/home/node/.env",
         }
     }],
 
@@ -29,12 +25,8 @@ module.exports = {
             repo: "https://github.com/digital-stage/auth-server.git",
             path: '/node/auth-server',
             env: {
-                NODE_ENV: 'production',
-                PORT: '5000',
-                USE_SSL: false,
-                SSL_CRT: '/etc/letsencrypt/live/auth.api.digital-stage.org/fullchain.pem',
-                SSL_KEY: '/etc/letsencrypt/live/auth.api.digital-stage.org/privkey.pem',
-                MONGO_URL: 'mongodb://10.114.0.4:27017/auth'
+                "NODE_ENV": "production",
+                "ENV_PATH": "/home/node/.env",
             },
             'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production'
         }

@@ -8,6 +8,8 @@ export interface User {
     password?: string;
     passwordHash: string;
     avatarUrl: string;
+    resetToken?: string;
+    resetPasswordExpires?: number;
 }
 
 const UserSchema = new mongoose.Schema({
@@ -15,6 +17,8 @@ const UserSchema = new mongoose.Schema({
     email: {type: String, required: true, unique: true, index: true},
     passwordHash: {type: String, required: true},
     avatarUrl: {type: String},
+    resetToken: {type: String},
+    resetPasswordExpires: {type: Number}
 }, {timestamps: true});
 UserSchema.methods.validPassword = function (password): Promise<boolean> {
     return bcrypt.compare(password, this.passwordHash.toString());
