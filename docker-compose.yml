@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:4.2.10
+    restart: always
+    ports:
+      - '27017:27017'
+    networks:
+      - digital-stage
+
+  digital-auth:
+    image: digital-auth:0.0.1
+    build: .
+    init: true
+    depends_on:
+      - mongo
+    restart: always
+    environment:
+      MONGO_URL: 'mongodb://mongo:27017'
+      MONGO_DB: 'digitalserverdb'
+      PORT: '5000'
+    ports:
+      - '5000:5000'
+    networks:
+      - digital-stage
+
+networks:
+  digital-stage:
