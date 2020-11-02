@@ -1,14 +1,14 @@
-import * as mongoose from "mongoose";
+import * as mongoose from 'mongoose';
 
 export type InvalidToken = {
-    _id: string;
-    token: string;
+  _id: string;
+  token: string;
 };
 
 const BlacklistEntrySchema = new mongoose.Schema({
-    token: {type: String, index: true},
-    createdAt: {type: Date, expires: 604800, default: Date.now}
-}, {timestamps: true});
+  token: { type: String, index: true },
+  createdAt: { type: Date, expires: 604800, default: Date.now },
+}, { timestamps: true });
 
 export type InvalidTokenType = InvalidToken & mongoose.Document;
 export const BlacklistEntryModel = mongoose.model<InvalidTokenType>('Blacklist', BlacklistEntrySchema);
