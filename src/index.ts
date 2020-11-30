@@ -159,9 +159,7 @@ app.post('/signup',
     )
       .then((existingUser) => {
         if (existingUser) {
-          return res.status(409).json({
-            error: 'Email is already used',
-          });
+          return res.status(409).send('Email is already used');
         }
         const user = new UserModel();
         user.name = req.body.name;
