@@ -9,18 +9,17 @@ import * as passport from 'passport';
 import * as LocalStrategy from 'passport-local';
 import { Strategy as JwtStrategy, VerifiedCallback, ExtractJwt } from 'passport-jwt';
 import debug from 'debug';
-
+import * as dotenv from 'dotenv';
 import * as jwt from 'jsonwebtoken';
 import { Request } from 'express';
 import * as crypto from 'crypto';
 import * as nodemailer from 'nodemailer';
 import { BlacklistEntryModel } from './store/BlacklistEntryModel';
 import { User, UserModel, UserType } from './store/UserModel';
-import resolveVariables from './env';
 import ErrorCodes from './errorCodes';
 import { sendActivationLink, sendResetPasswordLink } from './utils';
 
-resolveVariables();
+dotenv.config();
 
 const smtpTransport = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
