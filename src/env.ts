@@ -1,14 +1,12 @@
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
-import * as pino from 'pino';
+import debug from 'debug';
 
-const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-});
+const report = debug('auth');
 
 const resolveVariables = () => {
   if (process.env.ENV_PATH) {
-    logger.debug(`Using custom environment file at ${process.env.ENV_PATH}`);
+    report(`Using custom environment file at ${process.env.ENV_PATH}`);
     const envConfig = dotenv.parse(fs.readFileSync(process.env.ENV_PATH));
     Object.keys(envConfig).forEach((k) => {
       process.env[k] = envConfig[k];

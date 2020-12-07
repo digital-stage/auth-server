@@ -1,4 +1,3 @@
-import * as pino from 'pino';
 import * as express from 'express';
 import * as cors from 'cors';
 import * as https from 'https';
@@ -9,6 +8,7 @@ import * as mongoose from 'mongoose';
 import * as passport from 'passport';
 import * as LocalStrategy from 'passport-local';
 import { Strategy as JwtStrategy, VerifiedCallback, ExtractJwt } from 'passport-jwt';
+import debug from 'debug';
 
 import * as jwt from 'jsonwebtoken';
 import { Request } from 'express';
@@ -17,31 +17,10 @@ import * as nodemailer from 'nodemailer';
 import { BlacklistEntryModel } from './store/BlacklistEntryModel';
 import { User, UserModel, UserType } from './store/UserModel';
 import resolveVariables from './env';
+import ErrorCodes from './errorCodes';
+import { sendActivationLink, sendResetPasswordLink } from './utils';
 
 resolveVariables();
-
-const MONGOOSE_URL = process.env.MONGO_URL || 'mongodb://127.0.0.1:4321/auth';
-const PORT: number | string = process.env.PORT || 5000;
-const SECRET: string = process.env.SECRET || 'a2a4b644384b3c940ba4754a81736f79333077c8';
-const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-});
-
-// INIT MONGOOSE
-mongoose.connect(MONGOOSE_URL, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  useFindAndModify: false,
-}).then();
-
-const app: core.Express = express();
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(cors({ origin: true }));
-
-app.options('*', cors());
-app.use(passport.initialize());
-app.use(passport.session());
 
 const smtpTransport = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -53,6 +32,23 @@ const smtpTransport = nodemailer.createTransport({
   },
 });
 
+const MONGOOSE_URL = process.env.MONGO_URL || 'mongodb://127.0.0.1:4321/auth';
+const PORT: number | string = process.env.PORT || 5000;
+const SECRET: string = process.env.SECRET || 'a2a4b644384b3c940ba4754a81736f79333077c8';
+
+const inform = debug('auth');
+const trace = inform.extend('trace');
+const reportError = inform.extend('error');
+
+const app: core.Express = express();
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(cors({ origin: true }));
+
+app.options('*', cors());
+app.use(passport.initialize());
+app.use(passport.session());
+
 passport.use(new LocalStrategy({
   usernameField: 'email',
   passwordField: 'password',
@@ -61,13 +57,13 @@ passport.use(new LocalStrategy({
   UserModel.findOne({ email }).exec()
     .then((user: UserType) => {
       if (!user) {
-        logger.debug(`Authentication failed, since no user exists with email ${email}`);
+        trace(`Authentication failed, since no user exists with email ${email}`);
         return done(null, false, { message: 'Invalid email/password' });
       }
       return user.validPassword(password)
         .then((result) => {
           if (!result) {
-            logger.debug(`Authentication failed due to an invalid password for email ${email}`);
+            trace(`Authentication failed due to an invalid password for email ${email}`);
             return done(null, false, { message: 'Invalid email/password' });
           }
           return done(null, user, { message: 'Logged in Successfully' });
@@ -107,39 +103,126 @@ const generateToken = (user: User) => jwt.sign({
   expiresIn: 604800,
 });
 
-app.get('/', (req, res) => {
+app.get('/beat', (req, res) => {
   res.send('Hello World!');
 });
 app.post('/login',
   passport.authenticate('local', { session: false }),
   (req, res) => {
     const user: User = req.user as any;
-    return res.json(generateToken(user));
+    if (user.active) {
+      trace(`/login - generated token for ${user.name}`);
+      return res.json(generateToken(user));
+    }
+    trace(`/login - cannot login inactive user ${user.name}`);
+    return res.sendStatus(ErrorCodes.NotActivated);
   });
 app.get('/verify',
   passport.authenticate('jwt', { session: false }),
   (req, res) => {
     const user: User = req.user as any;
     if (user) {
-      return res.sendStatus(200);
+      if (user.active) {
+        trace(`/profile - User ${user.name} is valid`);
+        return res.sendStatus(200);
+      }
+      trace(`/verify - Send false for inactive user ${user.name}`);
+      return res.sendStatus(ErrorCodes.NotActivated);
     }
-    return res.sendStatus(401);
+    trace('/verify - Could not find user');
+    return res.sendStatus(ErrorCodes.NotFound);
   });
 app.get('/profile',
   passport.authenticate('jwt', { session: false }),
   (req, res) => {
     const user: User = req.user as any;
-    return res.status(200).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      avatarUrl: user.avatarUrl,
+    if (user) {
+      if (user.active) {
+        trace(`/profile - Sending profile of ${user.name}`);
+        return res.json({
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          avatarUrl: user.avatarUrl,
+        });
+      }
+      trace(`/profile - Do not return inactive profile for ${user.name}`);
+      return res.sendStatus(ErrorCodes.NotActivated);
+    }
+    trace('/profile - Could not find profile');
+    return res.sendStatus(ErrorCodes.NotFound);
+  });
+app.post('/reactivate', (req, res) => {
+  if (!req.body.email
+        || typeof req.body.email !== 'string') {
+    trace('/reactivate - Invalid request');
+    return res.sendStatus(ErrorCodes.BadRequest);
+  }
+  return UserModel.findOne({
+    email: req.body.email,
+    active: {
+      $ne: true,
+    },
+  }).exec()
+    .then((user) => {
+      if (user) {
+        const activationCode: string = crypto.randomBytes(20).toString('hex');
+        /* eslint-disable no-param-reassign */
+        user.activationCode = activationCode;
+        user.activationCodeExpires = Date.now() + 3600000;
+        /* eslint-enable no-param-reassign */
+        return user.save()
+          .then(() => sendActivationLink(smtpTransport, user.email, activationCode))
+          .then(() => res.sendStatus(200));
+      }
+      return res.sendStatus(ErrorCodes.NotFound);
+    })
+    .catch((err) => {
+      reportError(`/reactivate - ${err}`);
+      return res.sendStatus(ErrorCodes.InternalError);
     });
+});
+app.post('/activate',
+  (req, res) => {
+    if (!req.body.code
+            || typeof req.body.code !== 'string') {
+      trace('/activate - Invalid request');
+      return res.sendStatus(ErrorCodes.BadRequest);
+    }
+    return UserModel.findOne({
+      activationCode: req.body.code,
+      activationCodeExpires: { $gt: Date.now() },
+    }).exec()
+      .then((user) => {
+        if (user) {
+          if (!user.active) {
+            /* eslint-disable no-param-reassign */
+            user.active = true;
+            user.activationCode = undefined;
+            user.activationCodeExpires = undefined;
+            /* eslint-enable no-param-reassign */
+            return user.save()
+              .then(() => {
+                trace(`/activate - Valid code used to activate ${user.name}`);
+                return res.sendStatus(200);
+              });
+          }
+          trace(`/activate - Account ${user.name} is already activated`);
+        } else {
+          trace('/activate - Invalid or expired code used to activate');
+        }
+        return res.sendStatus(ErrorCodes.InvalidToken);
+      })
+      .catch((err) => {
+        reportError(`/activate - ${err}`);
+        return res.sendStatus(ErrorCodes.InternalError);
+      });
   });
 app.post('/token',
   passport.authenticate('local', { session: false }),
   (req, res) => {
     const user: User = req.user as any;
+    trace(`/token - generated token for user ${user.name}`);
     return res.json(generateToken(user));
   });
 app.post('/signup',
@@ -153,26 +236,34 @@ app.post('/signup',
             || typeof req.body.email !== 'string'
             || (req.body.avatarUrl && typeof req.body.avatarUrl !== 'string')
     ) {
-      return res.sendStatus(400);
+      trace('/signup - Invalid request');
+      return res.sendStatus(ErrorCodes.BadRequest);
     }
     return UserModel.findOne({ email: req.body.email }).exec(
     )
       .then((existingUser) => {
         if (existingUser) {
-          return res.status(409).send('Email is already used');
+          trace(`/signup - Email address ${existingUser.email} already in use!`);
+          return res.sendStatus(ErrorCodes.EmailAlreadyInUse);
         }
+        const activationCode: string = crypto.randomBytes(20).toString('hex');
         const user = new UserModel();
         user.name = req.body.name;
         user.password = req.body.password;
         user.email = req.body.email;
         user.avatarUrl = req.body.avatarUrl;
-        return user.save().then(
-          () => res.json(generateToken(user)),
-        );
+        user.activationCode = activationCode;
+        user.activationCodeExpires = Date.now() + 3600000;
+
+        return user
+          .save()
+          .then(() => sendActivationLink(smtpTransport, user.email, activationCode))
+          .then(() => trace(`/signup - Sent activation mail to ${user.email}`))
+          .then(() => res.sendStatus(200));
       })
       .catch((err) => {
-        logger.error(err);
-        return res.sendStatus(500);
+        reportError(`/signup - ${err}`);
+        return res.sendStatus(ErrorCodes.InternalError);
       });
   });
 app.post('/logout',
@@ -182,7 +273,15 @@ app.post('/logout',
     const invalidToken = new BlacklistEntryModel();
     invalidToken.token = token;
     return invalidToken.save()
-      .then(() => res.sendStatus(200));
+      .then(() => {
+        trace(`/logout - Signed out user ${(req.user as any).name}`);
+        trace(`/logout - Blacklisted token ${token}`);
+        return res.sendStatus(200);
+      })
+      .catch((error) => {
+        reportError(`/logout ${error}`);
+        return res.sendStatus(ErrorCodes.InternalError);
+      });
   });
 app.post('/forgot',
   (req, res) => {
@@ -190,7 +289,8 @@ app.post('/forgot',
       !req.body.email
             || typeof req.body.email !== 'string'
     ) {
-      return res.sendStatus(400);
+      trace('/forgot - Invalid request');
+      return res.sendStatus(ErrorCodes.BadRequest);
     }
     return UserModel.findOne({ email: req.body.email }).exec()
       .then((user) => {
@@ -201,23 +301,20 @@ app.post('/forgot',
           user.resetPasswordExpires = Date.now() + 3600000;
           /* eslint-enable no-param-reassign */
           return user.save()
-            .then(() => smtpTransport.sendMail({
-              to: user.email,
-              from: process.env.SMTP_FROM,
-              subject: 'Passwort zurücksetzen',
-              text: `${'Du erhälst diese E-Mail da Du (oder jemand anderes) dein Passwort auf digital-stage.org zurücksetzen möchte.\n\n'
-                                + 'Bitte klicke auf den folgenden Link, um Dein Passwort zurückzusetzen:\n\n'}${
-                process.env.RESET_URL}?token=${resetToken}\n\n`
-                                + 'Falls Du nicht Dein Passwort zurücksetzen wolltest, ignoriere bitte diese E-Mail.\n',
-            })
-              .then(() => logger.info(`Send reset mail to ${user.email}`))
-              .then(() => res.sendStatus(200)))
-            .catch((error) => {
-              logger.error(error);
-              return res.sendStatus(500);
+            .then(() => sendResetPasswordLink(smtpTransport, user.email, resetToken))
+            .then(() => trace(`/forgot - Sent reset mail to ${user.email}`))
+            .then(() => res.sendStatus(200))
+            .catch((err) => {
+              reportError(err);
+              return res.sendStatus(ErrorCodes.InternalError);
             });
         }
-        return res.sendStatus(404);
+        trace(`/forgot - Could not found user by email ${req.body.email}`);
+        return res.sendStatus(ErrorCodes.NotFound);
+      })
+      .catch((error) => {
+        reportError(`/forgot ${error}`);
+        return res.sendStatus(ErrorCodes.InternalError);
       });
   });
 app.post('/reset',
@@ -228,7 +325,8 @@ app.post('/reset',
             || !req.body.token
             || typeof req.body.token !== 'string'
     ) {
-      return res.sendStatus(400);
+      trace('/reset - Invalid request');
+      return res.sendStatus(ErrorCodes.BadRequest);
     }
     return UserModel.findOne({
       resetToken: req.body.token,
@@ -236,37 +334,53 @@ app.post('/reset',
     })
       .then((user) => {
         if (user) {
-          logger.info(`User ${user.name} reset password!`);
+          trace(`User ${user.name} reset password!`);
           /* eslint-disable no-param-reassign */
           user.password = req.body.password;
+          user.resetToken = undefined;
+          user.resetPasswordExpires = undefined;
           /* eslint-enable no-param-reassign */
 
           return user.save()
-            .then(() => res.sendStatus(200));
+            .then(() => {
+              trace(`/reset - Successfully reset password of ${user.name}`);
+              return res.sendStatus(200);
+            });
         }
-        logger.debug('Invalid token used for reset');
-        return res.sendStatus(401);
+        trace('/reset - Invalid token used for reset');
+        return res.sendStatus(ErrorCodes.InvalidToken);
       })
       .catch((error) => {
-        logger.error(error);
-        return res.sendStatus(500);
+        reportError(`/reset ${error}`);
+        return res.sendStatus(ErrorCodes.InternalError);
       });
   });
 
-if (!process.env.USE_SSL || process.env.USE_SSL === 'false') {
-  app.listen(PORT);
-  logger.info(`SERVER LISTENING WITHOUT SSL ON PORT ${PORT}`);
-} else {
-  https.createServer({
-    key: fs.readFileSync(
-      path.resolve(process.env.SSL_KEY || './ssl/key.pem'),
-    ),
-    cert: fs.readFileSync(
-      path.resolve(process.env.SSL_CRT || './ssl/cert.pem'),
-    ),
-    ca: process.env.SSL_CA ? fs.readFileSync(path.resolve(process.env.SSL_CA)) : undefined,
-    requestCert: true,
-    rejectUnauthorized: false,
+// INIT MONGOOSE
+inform(`Connecting to ${MONGOOSE_URL} ...`);
+mongoose.connect(MONGOOSE_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  useFindAndModify: false,
+  useCreateIndex: true,
+})
+  .then(() => {
+    inform(`Connected to ${MONGOOSE_URL}!`);
+    if (!process.env.USE_SSL || process.env.USE_SSL === 'false') {
+      app.listen(PORT);
+      inform(`SERVER LISTENING WITHOUT SSL ON PORT ${PORT}`);
+    } else {
+      https.createServer({
+        key: fs.readFileSync(
+          path.resolve(process.env.SSL_KEY || './ssl/key.pem'),
+        ),
+        cert: fs.readFileSync(
+          path.resolve(process.env.SSL_CRT || './ssl/cert.pem'),
+        ),
+        ca: process.env.SSL_CA ? fs.readFileSync(path.resolve(process.env.SSL_CA)) : undefined,
+        requestCert: true,
+        rejectUnauthorized: false,
+      });
+      inform(`SERVER LISTENING WITH SSL ON PORT ${PORT}`);
+    }
   });
-  logger.info(`SERVER LISTENING WITH SSL ON PORT ${PORT}`);
-}

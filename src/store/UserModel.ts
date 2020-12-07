@@ -8,6 +8,9 @@ export interface User {
   password?: string;
   passwordHash: string;
   avatarUrl: string;
+  active: boolean;
+  activationCode?: string;
+  activationCodeExpires?: number;
   resetToken?: string;
   resetPasswordExpires?: number;
 }
@@ -19,6 +22,9 @@ const UserSchema = new mongoose.Schema({
   },
   passwordHash: { type: String, required: true },
   avatarUrl: { type: String },
+  active: { type: Boolean },
+  activationCode: { type: String },
+  activationCodeExpires: { type: Number },
   resetToken: { type: String },
   resetPasswordExpires: { type: Number },
 }, { timestamps: true });

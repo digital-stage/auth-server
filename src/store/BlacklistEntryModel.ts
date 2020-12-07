@@ -7,7 +7,7 @@ export type InvalidToken = {
 
 const BlacklistEntrySchema = new mongoose.Schema({
   token: { type: String, index: true },
-  createdAt: { type: Date, expires: 604800, default: Date.now },
+  createdAt: { type: Date, expires: '1d', default: Date.now },
 }, { timestamps: true });
 
 export type InvalidTokenType = InvalidToken & mongoose.Document;
