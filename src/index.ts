@@ -159,21 +159,28 @@ app.post('/reactivate', (req, res) => {
   }
   return UserModel.findOne({
     email: req.body.email,
-    active: {
-      $ne: true,
-    },
   }).exec()
     .then((user) => {
       if (user) {
-        const activationCode: string = crypto.randomBytes(20).toString('hex');
-        /* eslint-disable no-param-reassign */
-        user.activationCode = activationCode;
-        user.activationCodeExpires = Date.now() + 3600000;
-        /* eslint-enable no-param-reassign */
-        return user.save()
-          .then(() => sendActivationLink(smtpTransport, user.email, activationCode))
-          .then(() => res.sendStatus(200));
+        if (!user.active) {
+          const activationCode: string = crypto.randomBytes(20).toString('hex');
+          /* eslint-disable no-param-reassign */
+          user.activationCode = activationCode;
+          user.activationCodeExpires = Date.now() + 3600000;
+          /* eslint-enable no-param-reassign */
+          return user.save()
+            .then(() => sendActivationLink(smtpTransport, user.email, activationCode))
+            .then(() => trace(`/reactivate - Send activation code to ${user.name}`))
+            .then(() => res.sendStatus(200))
+            .catch((error) => {
+              reportError(`/reactivate - ${error}`);
+              return res.sendStatus(ErrorCodes.InternalError);
+            });
+        }
+        trace(`/reactivate - User ${user.name} is already active`);
+        return res.sendStatus(ErrorCodes.AlreadyActivated);
       }
+      trace(`/reactivate - User not found by email ${req.body.email}`);
       return res.sendStatus(ErrorCodes.NotFound);
     })
     .catch((err) => {
