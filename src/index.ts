@@ -32,6 +32,7 @@ const smtpTransport = nodemailer.createTransport({
 });
 
 const MONGOOSE_URL = process.env.MONGO_URL || 'mongodb://127.0.0.1:4321/auth';
+const MONGOOSE_CA = process.env.MONGO_CA ? [fs.readFileSync(process.env.MONGO_CA)] : undefined;
 const PORT: number | string = process.env.PORT || 5000;
 const SECRET: string = process.env.SECRET || 'a2a4b644384b3c940ba4754a81736f79333077c8';
 
@@ -365,6 +366,8 @@ app.post('/reset',
 // INIT MONGOOSE
 inform(`Connecting to ${MONGOOSE_URL} ...`);
 mongoose.connect(MONGOOSE_URL, {
+  sslValidate: !!MONGOOSE_CA,
+  sslCA: MONGOOSE_CA,
   useNewUrlParser: true,
   useUnifiedTopology: true,
   useFindAndModify: false,
