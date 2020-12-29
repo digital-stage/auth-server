@@ -3,7 +3,6 @@ import * as cors from 'cors';
 import * as https from 'https';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as core from 'express-serve-static-core';
 import * as mongoose from 'mongoose';
 import * as passport from 'passport';
 import * as LocalStrategy from 'passport-local';
@@ -40,7 +39,7 @@ const inform = debug('auth');
 const trace = inform.extend('trace');
 const reportError = inform.extend('error');
 
-const app: core.Express = express();
+const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors({ origin: true }));
