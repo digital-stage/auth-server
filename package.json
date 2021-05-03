@@ -1,5 +1,6 @@
 {
   "name": "@digitalstage/auth-server",
+  "private": true,
   "version": "0.0.1",
   "description": "Authentication server for digital-stage.org",
   "main": "index.js",
