@@ -1,4 +1,14 @@
 import * as Mail from 'nodemailer/lib/mailer'
+import * as fs from 'fs'
+
+const getEnvPath = () => {
+    if (fs.existsSync('.env.local')) return '.env.local'
+    if (fs.existsSync('.env')) return '.env'
+    if (fs.existsSync(`.env.${process.env.NODE_ENV}`)) return `.env.${process.env.NODE_ENV}`
+    throw new Error(
+        `No environmental file (.env.local, .env or .env.${process.env.NODE_ENV}) provided!`
+    )
+}
 
 const sendActivationLink = (transport: Mail, email: string, code: string) =>
     transport.sendMail({
@@ -25,4 +35,4 @@ const sendResetPasswordLink = (transport: Mail, email: string, code: string) =>
             }${process.env.RESET_URL}?token=${code}\n\n` +
             'Falls Du nicht Dein Passwort zurücksetzen wolltest, ignoriere bitte diese E-Mail.\n',
     })
-export { sendActivationLink, sendResetPasswordLink }
+export { sendActivationLink, sendResetPasswordLink, getEnvPath }

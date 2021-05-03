@@ -17,14 +17,14 @@ import * as dotenvExpand from 'dotenv-expand'
 import { BlacklistEntryModel } from './store/BlacklistEntryModel'
 import { User, UserModel, UserType } from './store/UserModel'
 import ErrorCodes from './errorCodes'
-import { sendActivationLink, sendResetPasswordLink } from './utils'
+import { sendActivationLink, sendResetPasswordLink, getEnvPath } from './utils'
 
 const inform = debug('auth')
 const trace = inform.extend('trace')
 const reportError = inform.extend('error')
 
-const envPath = fs.existsSync('.env') ? '.env' : '.env.debug'
-inform(`Loaded env from ${envPath.toString()}`)
+const envPath = getEnvPath()
+inform(`Loaded env from ${envPath}`)
 const env = dotenv.config({ path: envPath })
 dotenvExpand(env)
 
