@@ -1,12 +1,10 @@
 FROM node:14.15.0-buster AS build
 
-ENV USE_SSL=false
 ENV SECRET=dawd2f2f2f2222dcwwdwdwe23593g33v6c73147a
-ENV MONGO_URL=mongodb://mongo:27017
+ENV MONGO_URL=mongodb://mongo:27017/auth
 
 COPY package.json ./
 COPY tsconfig.json ./
-COPY ecosystem.config.js ./
 RUN npm install
 COPY src ./src
 RUN npm run build
