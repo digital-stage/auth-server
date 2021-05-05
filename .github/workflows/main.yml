@@ -14,16 +14,21 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v2
 
-      - name: Use Node ${{ matrix.node }}
-        uses: actions/setup-node@v1
+      - uses: actions/cache@v2
         with:
-          node-version: ${{ matrix.node }}
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
-      - name: Install deps and build (with cache)
-        uses: bahmutov/npm-install@v1
+          - name: Use Node ${{ matrix.node }}
+            uses: actions/setup-node@v1
+            with:
+              node-version: ${{ matrix.node }}
 
-      - name: Build
-        run: yarn build
+          - name: Install packages
+              run: yarn install
 
-      - name: Lint
-        run: yarn lint
+          - name: Run Linter
+              run: yarn lint
+
+          - name: Build
+            run: yarn build
