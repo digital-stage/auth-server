@@ -19,16 +19,16 @@ jobs:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
 
-          - name: Use Node ${{ matrix.node }}
-            uses: actions/setup-node@v1
-            with:
-              node-version: ${{ matrix.node }}
+      - name: Use Node ${{ matrix.node }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node }}
 
-          - name: Install packages
-              run: yarn install
+      - name: Install packages
+          run: yarn install
 
-          - name: Run Linter
-              run: yarn lint
+      - name: Run Linter
+          run: yarn lint
 
-          - name: Build
-            run: yarn build
+      - name: Build
+        run: yarn build
