@@ -4,3 +4,4 @@ package-lock.json
 firebase-adminsdk.json
 dist
 .idea
+.DS_Store
