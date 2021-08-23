@@ -7,23 +7,23 @@ const getEnvPath = () => {
     return `.env.${process.env.NODE_ENV}`
 }
 
-const activationMail = fs.readFileSync('./templates/activate.html').toString()
-const resetPasswordMail = fs.readFileSync('./templates/reset.html').toString()
+//const activationMail = fs.readFileSync('./templates/activate.html').toString()
+//const resetPasswordMail = fs.readFileSync('./templates/reset.html').toString()
 
 const sendActivationLink = (transport: Mail, email: string, code: string) =>
     transport.sendMail({
         to: email,
         from: process.env.SMTP_FROM,
         subject: 'Aktiviere Deinen Account',
-        html: activationMail
-            .replace('{url}', `${process.env.ACTIVATE_URL}?code=${code}`)
-            .replace('{code}', code),
+        /*html: activationMail
+        .replace('{url}', `${process.env.ACTIVATE_URL}?code=${code}`)
+        .replace('{code}', code),*/
         text: `Du erhälst diese E-Mail da Du (oder jemand anderes) einen Account auf digital-stage.org erstellt hat.\n\n
                Dein Aktivierungscode lautet:\n
                ${code}\n\n
                Bitte klicke auf den folgenden Link, um Deinen Account zu aktivieren:\n
                ${process.env.ACTIVATE_URL}?code=${code}\n\n
-               Falls Du keinen Account erstellt hast, ignoriere einfach diese E-Mail.`,
+               Falls Du keinen Account erstellt hast, ignoriere einfach diese E-Mail.\n`,
     })
 
 const sendResetPasswordLink = (transport: Mail, email: string, code: string) =>
@@ -31,14 +31,12 @@ const sendResetPasswordLink = (transport: Mail, email: string, code: string) =>
         to: email,
         from: process.env.SMTP_FROM,
         subject: 'Passwort zurücksetzen',
-        html: resetPasswordMail
-            .replace('{url}', `${process.env.ACTIVATE_URL}?code=${code}`)
-            .replace('{code}', code),
-        text:
-            `${
-                'Du erhälst diese E-Mail da Du (oder jemand anderes) dein Passwort auf digital-stage.org zurücksetzen möchte.\n\n' +
-                'Bitte klicke auf den folgenden Link, um Dein Passwort zurückzusetzen:\n\n'
-            }${process.env.RESET_URL}?token=${code}\n\n` +
-            'Falls Du nicht Dein Passwort zurücksetzen wolltest, ignoriere bitte diese E-Mail.\n',
+        /*html: resetPasswordMail
+        .replace('{url}', `${process.env.ACTIVATE_URL}?code=${code}`)
+        .replace('{code}', code),*/
+        text: `Du erhälst diese E-Mail da Du (oder jemand anderes) dein Passwort auf digital-stage.org zurücksetzen möchte.\n\n
+        Bitte klicke auf den folgenden Link, um Dein Passwort zurückzusetzen:\n\n
+        ${process.env.RESET_URL}?token=${code}\n\n
+        Falls Du nicht Dein Passwort zurücksetzen wolltest, ignoriere bitte diese E-Mail.\n`,
     })
 export { sendActivationLink, sendResetPasswordLink, getEnvPath }

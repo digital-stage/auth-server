@@ -4,6 +4,7 @@ module.exports = {
         "plugin:promise/recommended",
         "plugin:prettier/recommended"
     ],
+    plugins: ["import"],
     rules: {
         "no-underscore-dangle": 0,
         "promise/no-nesting": 0,
