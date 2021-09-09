@@ -5,7 +5,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as mongoose from 'mongoose'
 import * as passport from 'passport'
-import * as LocalStrategy from 'passport-local'
+import { Strategy as LocalStrategy } from 'passport-local'
 import { Strategy as JwtStrategy, VerifiedCallback, ExtractJwt } from 'passport-jwt'
 import debug from 'debug'
 import * as dotenv from 'dotenv'
@@ -16,7 +16,7 @@ import * as nodemailer from 'nodemailer'
 import * as dotenvExpand from 'dotenv-expand'
 import { BlacklistEntryModel } from './store/BlacklistEntryModel'
 import { User, UserModel, UserType } from './store/UserModel'
-import ErrorCodes from './errorCodes'
+import { ErrorCodes } from './errorCodes'
 import { sendActivationLink, sendResetPasswordLink, getEnvPath } from './utils'
 
 const inform = debug('auth')
@@ -90,7 +90,7 @@ passport.use(
         (req: Request, jwt_payload: any, done: VerifiedCallback) => {
             // Check if token is blacklisted
             const token: string = ExtractJwt.fromAuthHeaderAsBearerToken()(req)
-            return BlacklistEntryModel.findOne({ token })
+            BlacklistEntryModel.findOne({ token })
                 .exec()
                 .then((invalidToken) => {
                     if (invalidToken) {
@@ -104,8 +104,8 @@ passport.use(
                             }
                             return done(null, false)
                         })
-                        .catch((err) => done(err, false))
                 })
+                .catch((err) => done(err, false))
         }
     )
 )
@@ -172,7 +172,7 @@ app.post('/reactivate', (req, res) => {
         trace('/reactivate - Invalid request')
         return res.sendStatus(ErrorCodes.BadRequest)
     }
-    return UserModel.findOne({
+    UserModel.findOne({
         email: req.body.email,
     })
         .exec()
@@ -189,8 +189,8 @@ app.post('/reactivate', (req, res) => {
                         .then(() => sendActivationLink(smtpTransport, user.email, activationCode))
                         .then(() => trace(`/reactivate - Send activation code to ${user.name}`))
                         .then(() => res.sendStatus(200))
-                        .catch((error) => {
-                            reportError(`/reactivate - ${error}`)
+                        .catch((error: Error) => {
+                            reportError(`/reactivate - ${error.toString()}`)
                             return res.sendStatus(ErrorCodes.InternalError)
                         })
                 }
@@ -200,8 +200,8 @@ app.post('/reactivate', (req, res) => {
             trace(`/reactivate - User not found by email ${req.body.email}`)
             return res.sendStatus(ErrorCodes.NotFound)
         })
-        .catch((err) => {
-            reportError(`/reactivate - ${err}`)
+        .catch((err: Error) => {
+            reportError(`/reactivate - ${err.toString()}`)
             return res.sendStatus(ErrorCodes.InternalError)
         })
 })
@@ -210,7 +210,7 @@ app.post('/activate', (req, res) => {
         trace('/activate - Invalid request')
         return res.sendStatus(ErrorCodes.BadRequest)
     }
-    return UserModel.findOne({
+    UserModel.findOne({
         activationCode: req.body.code,
         activationCodeExpires: { $gt: Date.now() },
     })
@@ -257,7 +257,7 @@ app.post('/signup', (req, res) => {
         trace('/signup - Invalid request')
         return res.sendStatus(ErrorCodes.BadRequest)
     }
-    return UserModel.findOne({ email: req.body.email })
+    UserModel.findOne({ email: req.body.email })
         .exec()
         .then((existingUser) => {
             if (existingUser) {
@@ -305,7 +305,7 @@ app.post('/forgot', (req, res) => {
         trace('/forgot - Invalid request')
         return res.sendStatus(ErrorCodes.BadRequest)
     }
-    return UserModel.findOne({ email: req.body.email })
+    UserModel.findOne({ email: req.body.email })
         .exec()
         .then((user) => {
             if (user) {
@@ -342,7 +342,7 @@ app.post('/reset', (req, res) => {
         trace('/reset - Invalid request')
         return res.sendStatus(ErrorCodes.BadRequest)
     }
-    return UserModel.findOne({
+    UserModel.findOne({
         resetToken: req.body.token,
         resetPasswordExpires: { $gt: Date.now() },
     })

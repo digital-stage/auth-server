@@ -9,4 +9,4 @@ const ErrorCodes = {
     InvalidToken: 403,
 }
 
-export default ErrorCodes
+export { ErrorCodes }

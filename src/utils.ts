@@ -1,7 +1,7 @@
 import * as Mail from 'nodemailer/lib/mailer'
 import * as fs from 'fs'
 
-const getEnvPath = () => {
+const getEnvPath = (): string => {
     if (fs.existsSync('.env.local')) return '.env.local'
     if (fs.existsSync('.env')) return '.env'
     return `.env.${process.env.NODE_ENV}`
@@ -10,7 +10,7 @@ const getEnvPath = () => {
 //const activationMail = fs.readFileSync('./templates/activate.html').toString()
 //const resetPasswordMail = fs.readFileSync('./templates/reset.html').toString()
 
-const sendActivationLink = (transport: Mail, email: string, code: string) =>
+const sendActivationLink = (transport: Mail, email: string, code: string): Promise<any> =>
     transport.sendMail({
         to: email,
         from: process.env.SMTP_FROM,
@@ -21,7 +21,7 @@ const sendActivationLink = (transport: Mail, email: string, code: string) =>
         text: `Du erhälst diese E-Mail da Du (oder jemand anderes) einen Account auf digital-stage.org erstellt hat.\n\nDein Aktivierungscode lautet:\n${code}\n\nBitte klicke auf den folgenden Link, um Deinen Account zu aktivieren:\n${process.env.ACTIVATE_URL}?code=${code}\n\nFalls Du keinen Account erstellt hast, ignoriere einfach diese E-Mail.\n`,
     })
 
-const sendResetPasswordLink = (transport: Mail, email: string, code: string) =>
+const sendResetPasswordLink = (transport: Mail, email: string, code: string): Promise<any> =>
     transport.sendMail({
         to: email,
         from: process.env.SMTP_FROM,

@@ -13,6 +13,8 @@ export interface User {
     activationCodeExpires?: number
     resetToken?: string
     resetPasswordExpires?: number
+
+    canCreateStage: boolean
 }
 
 const UserSchema = new mongoose.Schema(
@@ -31,17 +33,21 @@ const UserSchema = new mongoose.Schema(
         activationCodeExpires: { type: Number },
         resetToken: { type: String },
         resetPasswordExpires: { type: Number },
+
+        canCreateStage: { type: Boolean },
     },
     { timestamps: true }
 )
 
 function validPassword(password): Promise<boolean> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     return bcrypt.compare(password, this.passwordHash.toString())
 }
 
 UserSchema.methods.validPassword = validPassword
 
 function hashPassword(value) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     this.passwordHash = bcrypt.hashSync(value, 12)
 }
 
